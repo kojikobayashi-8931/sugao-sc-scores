@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>菅生SC U-8 対戦成績</title>
   <link rel="icon" type="image/jpeg" href="sugaosc_logo.jpg">
+  <meta property="og:type"        content="website">
+  <meta property="og:title"       content="菅生SC U-8 対戦成績">
+  <meta property="og:description" content="菅生SC U-8の試合成績・得点ランキング・対戦相手別実績">
+  <meta property="og:image"       content="https://sugao-sc-scores.vercel.app/sugaosc_logo.jpg">
+  <meta property="og:url"         content="https://sugao-sc-scores.vercel.app/">
+  <meta name="twitter:card"       content="summary">
+  <meta name="twitter:image"      content="https://sugao-sc-scores.vercel.app/sugaosc_logo.jpg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -309,6 +316,30 @@
       color: var(--muted);
       font-size: 0.9rem;
     }
+
+    /* ── Video buttons ── */
+    .video-btns {
+      display: flex;
+      gap: 6px;
+      margin-top: 7px;
+      flex-wrap: wrap;
+    }
+    .btn-video {
+      display: inline-flex;
+      align-items: center;
+      background: #CC0000;
+      color: #fff;
+      text-decoration: none;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      min-height: 36px;
+      white-space: nowrap;
+      box-shadow: 0 2px 6px rgba(204,0,0,0.30);
+      transition: background 0.15s;
+    }
+    .btn-video:active { background: #990000; }
   </style>
 </head>
 <body>
@@ -445,6 +476,15 @@ function applyFilter(data, v) {
   return data;
 }
 
+function videoButtons(r) {
+  const h = String(r[7] || '').trim();
+  const i = String(r[8] || '').trim();
+  if (!h && !i) return '';
+  const bh = h ? `<a href="${h}" target="_blank" rel="noopener" class="btn-video">▶ 前半</a>` : '';
+  const bi = i ? `<a href="${i}" target="_blank" rel="noopener" class="btn-video">▶ 後半</a>` : '';
+  return `<div class="video-btns">${bh}${bi}</div>`;
+}
+
 function wr(w, t)    { return t ? Math.round(w / t * 100) + '%' : '—'; }
 function wrCls(w, t) {
   if (!t) return '';
@@ -532,7 +572,7 @@ function renderResults() {
     const rc  = res === '◯' ? 'c-win' : res === '△' ? 'c-draw' : 'c-loss';
     return `<tr>
       <td>${formatDate(r[0])}</td>
-      <td class="tl">${r[2] || ''}${r[1] ? `<div class="sub">${r[1]}</div>` : ''}</td>
+      <td class="tl">${r[2] || ''}${r[1] ? `<div class="sub">${r[1]}</div>` : ''}${videoButtons(r)}</td>
       <td>${num(r, 3)}–${num(r, 4)}</td>
       <td class="${rc}">${res}</td>
     </tr>`;
@@ -714,7 +754,7 @@ function renderOpponents() {
       const rc  = res === '◯' ? 'c-win' : res === '△' ? 'c-draw' : 'c-loss';
       return `<tr>
         <td>${formatDate(r[0])}</td>
-        <td class="tl">${r[1] || ''}</td>
+        <td class="tl">${r[1] || ''}${videoButtons(r)}</td>
         <td>${num(r, 3)}–${num(r, 4)}</td>
         <td class="${rc}">${res}</td>
       </tr>`;
