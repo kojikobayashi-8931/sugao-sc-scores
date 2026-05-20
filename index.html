@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>菅生SC U-8 対戦成績</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --green:  #2E7D32;
+      --green2: #43A047;
+      --accent: #66BB6A;
+      --win:    #1565C0;
+      --draw:   #1a1a1a;
+      --loss:   #C62828;
+      --bg:     #eef6ee;
+      --card:   #ffffff;
+      --text:   #1a1a1a;
+      --muted:  #757575;
+      --border: #c8e6c9;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Noto Sans JP', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, #1B5E20 0%, #2E7D32 55%, #388E3C 100%);
+      color: #fff;
+      padding: 20px 16px 18px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    header::before {
+      content: '';
+      position: absolute;
+      top: -30px; right: -20px;
+      width: 130px; height: 130px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+    header::after {
+      content: '';
+      position: absolute;
+      bottom: -40px; left: -15px;
+      width: 110px; height: 110px;
+      background: rgba(255,255,255,0.04);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+    header h1 {
+      font-size: 1.3rem;
+      font-weight: 800;
+      letter-spacing: 0.03em;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.25);
+      position: relative;
+    }
+    header p { font-size: 0.75rem; opacity: 0.75; margin-top: 6px; position: relative; }
+
+    /* ── Tab nav ── */
+    .tab-nav {
+      display: flex;
+      background: #fff;
+      padding: 8px 10px;
+      gap: 6px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 9px 4px;
+      border: none;
+      background: #f0f4f0;
+      border-radius: 20px;
+      font-size: 0.78rem;
+      font-family: inherit;
+      font-weight: 700;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .tab-btn.active {
+      background: var(--green);
+      color: #fff;
+      box-shadow: 0 3px 8px rgba(46,125,50,0.4);
+    }
+
+    /* ── Wrapper ── */
+    .wrap {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 16px 12px 48px;
+    }
+
+    /* ── Tab panels ── */
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* ── Loading ── */
+    .loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 64px 20px;
+      gap: 14px;
+    }
+    .spinner {
+      width: 44px;
+      height: 44px;
+      border: 4px solid var(--border);
+      border-top-color: var(--green);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading p { color: var(--muted); font-size: 0.9rem; }
+
+    /* ── Error ── */
+    .err-box {
+      background: #fff3f3;
+      border: 1px solid #ef9a9a;
+      border-radius: 16px;
+      padding: 16px;
+      margin-top: 16px;
+    }
+    .err-box h3 { color: #c62828; margin-bottom: 8px; font-size: 0.95rem; }
+    .err-box p  { color: #555; font-size: 0.85rem; line-height: 1.75; }
+    .err-box a  { color: var(--green); }
+    .err-box code {
+      background: #f5f5f5;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 0.85em;
+    }
+
+    /* ── Filter bar ── */
+    .fbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .fbar label {
+      font-size: 0.8rem;
+      color: var(--muted);
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .fsel {
+      flex: 1;
+      padding: 9px 30px 9px 14px;
+      border: 2px solid var(--border);
+      border-radius: 20px;
+      background: #fff
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 5 5-5' stroke='%232E7D32' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E")
+        no-repeat right 12px center;
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text);
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      transition: border-color 0.15s;
+    }
+    .fsel:focus { outline: none; border-color: var(--green); }
+
+    /* ── Stats grid ── */
+    .sgrid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    @media (min-width: 480px) {
+      .sgrid { grid-template-columns: repeat(4, 1fr); }
+    }
+    .scard {
+      background: var(--card);
+      border-radius: 18px;
+      padding: 16px 10px 14px;
+      text-align: center;
+      box-shadow: 0 3px 12px rgba(46,125,50,0.10);
+      border: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+    }
+    .scard::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--green), var(--accent));
+      border-radius: 18px 18px 0 0;
+    }
+    .scard .lbl  { font-size: 0.7rem;  color: var(--muted); margin-bottom: 6px; font-weight: 700; letter-spacing: 0.02em; }
+    .scard .val  { font-size: 1.65rem; font-weight: 800; line-height: 1; }
+    .scard .unit { font-size: 0.68rem; color: var(--muted); margin-top: 4px; }
+
+    /* ── Result badges ── */
+    .badges {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .badge {
+      flex: 1;
+      border-radius: 18px;
+      padding: 16px 4px;
+      text-align: center;
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+    }
+    .b-win  { background: linear-gradient(145deg, #1565C0, #1E88E5); }
+    .b-draw { background: linear-gradient(145deg, #37474F, #546E7A); }
+    .b-loss { background: linear-gradient(145deg, #B71C1C, #E53935); }
+    .b-diff { background: linear-gradient(145deg, #00695C, #00897B); }
+    .badge .n { font-size: 2rem; font-weight: 800; line-height: 1; }
+    .badge .l { font-size: 0.72rem; opacity: 0.9; margin-top: 5px; font-weight: 700; }
+
+    /* ── Section heading ── */
+    .sh {
+      font-size: 0.88rem;
+      font-weight: 800;
+      color: var(--green);
+      margin: 18px 0 10px;
+      padding: 7px 14px;
+      background: linear-gradient(90deg, rgba(46,125,50,0.10), transparent);
+      border-left: 4px solid var(--green);
+      border-radius: 0 10px 10px 0;
+    }
+
+    /* ── Table ── */
+    .tw {
+      background: var(--card);
+      border-radius: 18px;
+      box-shadow: 0 3px 12px rgba(46,125,50,0.10);
+      overflow: hidden;
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      -webkit-overflow-scrolling: touch;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    thead th {
+      background: linear-gradient(135deg, var(--green), var(--green2));
+      color: #fff;
+      padding: 11px 8px;
+      text-align: center;
+      font-weight: 700;
+      white-space: nowrap;
+      font-size: 0.78rem;
+      letter-spacing: 0.02em;
+    }
+    tbody td {
+      padding: 10px 8px;
+      text-align: center;
+      border-bottom: 1px solid #edf5ed;
+      white-space: nowrap;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:nth-child(even) { background: #f6fbf6; }
+    tbody tr:hover { background: #e8f5e9; transition: background 0.15s; }
+    td.tl { text-align: left; white-space: normal; }
+
+    /* ── Color helpers ── */
+    .c-win  { color: var(--win);   font-weight: 700; }
+    .c-draw { color: var(--draw);  font-weight: 700; }
+    .c-loss { color: var(--loss);  font-weight: 700; }
+    .c-main { color: var(--green); font-weight: 700; }
+    .c-muted{ color: var(--muted); }
+
+    /* ── Rank badge ── */
+    .rk {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      font-weight: 800;
+      font-size: 0.75rem;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+    }
+    .r1 { background: linear-gradient(135deg, #FFD700, #FFC107); color: #5a3e00; }
+    .r2 { background: linear-gradient(135deg, #BDBDBD, #9E9E9E); color: #fff; }
+    .r3 { background: linear-gradient(135deg, #CD7F32, #A1642A); color: #fff; }
+    .rn { background: #eeeeee; color: #666; box-shadow: none; }
+
+    /* ── Sub text (tournament name) ── */
+    .sub { font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
+
+    /* ── No data ── */
+    .nodata {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>⚽ 菅生SC U-8 対戦成績</h1>
+  <p id="updated"></p>
+</header>
+
+<nav class="tab-nav">
+  <button class="tab-btn active" data-tab="results">累計実績</button>
+  <button class="tab-btn" data-tab="scorers">得点ランキング</button>
+  <button class="tab-btn" data-tab="opponents">対戦相手別</button>
+</nav>
+
+<div class="wrap">
+
+  <!-- Loading -->
+  <div id="loading" class="loading">
+    <div class="spinner"></div>
+    <p>データ読み込み中...</p>
+  </div>
+
+  <!-- Error -->
+  <div id="err-wrap" style="display:none">
+    <div class="err-box">
+      <h3>⚠ データ取得エラー</h3>
+      <p id="err-msg"></p>
+    </div>
+  </div>
+
+  <!-- App -->
+  <div id="app" style="display:none">
+
+    <!-- Tab 1: 累計実績 -->
+    <div id="panel-results" class="panel active">
+      <div class="fbar">
+        <label>絞り込み：</label>
+        <select id="sel-results" class="fsel"></select>
+      </div>
+      <div id="out-results"></div>
+    </div>
+
+    <!-- Tab 2: 得点ランキング -->
+    <div id="panel-scorers" class="panel">
+      <div class="fbar">
+        <label>絞り込み：</label>
+        <select id="sel-scorers" class="fsel"></select>
+      </div>
+      <div id="out-scorers"></div>
+    </div>
+
+    <!-- Tab 3: 対戦相手別 -->
+    <div id="panel-opponents" class="panel">
+      <div class="fbar">
+        <label>絞り込み：</label>
+        <select id="sel-opponents" class="fsel" onchange="renderOpponents()">
+          <option value="">全チーム</option>
+        </select>
+      </div>
+      <div id="out-opponents"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/* ── 設定 ── */
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbyoSsAXqX4z3Yle9ZbF6CmFUfVS1vh2_zmk3KwaevtWdGTTw-HcFsavSrkFFTHE4HsSUA/exec';
+
+let rows = [];  // Array of raw row arrays from Sheets API
+
+/* ─────────────── Utility ─────────────── */
+
+function parseDate(s) {
+  if (!s) return null;
+  const str = String(s).trim();
+  if (str.includes('/')) {
+    const p = str.split('/');
+    if (p.length === 3) return new Date(+p[0], +p[1] - 1, +p[2]);
+  }
+  // Apps Script が Date 型を ISO 文字列として返す場合に対応
+  const d = new Date(str);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function formatDate(s) {
+  const d = parseDate(s);
+  if (!d) return String(s || '');
+  return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function fiscalYear(s) {
+  const d = parseDate(s);
+  if (!d) return null;
+  return (d.getMonth() + 1) >= 4 ? d.getFullYear() : d.getFullYear() - 1;
+}
+
+function monthKey(s) {
+  const d = parseDate(s);
+  if (!d) return null;
+  return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function parseScorers(s) {
+  const out = {};
+  if (!s || !s.trim()) return out;
+  for (const part of s.split(',')) {
+    const t = part.trim();
+    const i = t.lastIndexOf('×');
+    if (i > 0) {
+      const name = t.slice(0, i).trim();
+      const n    = parseInt(t.slice(i + 1), 10);
+      if (name && n > 0) out[name] = (out[name] || 0) + n;
+    }
+  }
+  return out;
+}
+
+function applyFilter(data, v) {
+  if (v === 'all') return data;
+  if (v.startsWith('fy:')) {
+    const fy = +v.slice(3);
+    return data.filter(r => fiscalYear(r[0]) === fy);
+  }
+  if (v.startsWith('m:')) {
+    const mk = v.slice(2);
+    return data.filter(r => monthKey(r[0]) === mk);
+  }
+  return data;
+}
+
+function wr(w, t)    { return t ? Math.round(w / t * 100) + '%' : '—'; }
+function wrCls(w, t) {
+  if (!t) return '';
+  const r = w / t;
+  return r >= 0.6 ? 'c-win' : r >= 0.4 ? 'c-draw' : 'c-loss';
+}
+
+function cell(r, i) { return String(r[i] ?? '').trim(); }
+function num(r, i)  { return +cell(r, i) || 0; }
+
+/* ─────────────── Tab switching ─────────────── */
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+/* ─────────────── Build filter selects ─────────────── */
+
+function buildSel(id) {
+  const sel  = document.getElementById(id);
+  const prev = sel.value;
+
+  const fys = [...new Set(rows.map(r => fiscalYear(r[0])).filter(Boolean))].sort((a, b) => b - a);
+  const mos = [...new Set(rows.map(r => monthKey(r[0])).filter(Boolean))].sort((a, b) => b.localeCompare(a));
+
+  sel.innerHTML = '<option value="all">累計</option>';
+
+  if (fys.length) {
+    const g = document.createElement('optgroup');
+    g.label = '年度別';
+    fys.forEach(fy => {
+      const o = document.createElement('option');
+      o.value = `fy:${fy}`;
+      o.textContent = `${fy}年度`;
+      g.appendChild(o);
+    });
+    sel.appendChild(g);
+  }
+
+  if (mos.length) {
+    const g = document.createElement('optgroup');
+    g.label = '月別';
+    mos.forEach(mk => {
+      const [y, m] = mk.split('/');
+      const o = document.createElement('option');
+      o.value = `m:${mk}`;
+      o.textContent = `${y}年${+m}月`;
+      g.appendChild(o);
+    });
+    sel.appendChild(g);
+  }
+
+  if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
+}
+
+/* ─────────────── Tab 1: 累計実績 ─────────────── */
+
+function renderResults() {
+  const data = applyFilter(rows, document.getElementById('sel-results').value);
+  const el   = document.getElementById('out-results');
+
+  if (!data.length) {
+    el.innerHTML = '<div class="nodata">該当するデータがありません</div>';
+    return;
+  }
+
+  const total    = data.length;
+  const wins     = data.filter(r => cell(r, 5) === '◯').length;
+  const draws    = data.filter(r => cell(r, 5) === '△').length;
+  const losses   = data.filter(r => cell(r, 5) === '×').length;
+  const scored   = data.reduce((s, r) => s + num(r, 3), 0);
+  const conceded = data.reduce((s, r) => s + num(r, 4), 0);
+  const diff     = scored - conceded;
+  const wrPct    = total ? Math.round(wins / total * 100) : 0;
+  const wrC      = wrPct >= 60 ? 'c-win' : wrPct >= 40 ? 'c-draw' : 'c-loss';
+  const diffSign = diff >= 0 ? '+' : '';
+
+  const matchRows = data.map(r => {
+    const res = cell(r, 5);
+    const rc  = res === '◯' ? 'c-win' : res === '△' ? 'c-draw' : 'c-loss';
+    return `<tr>
+      <td>${formatDate(r[0])}</td>
+      <td class="tl">${r[2] || ''}${r[1] ? `<div class="sub">${r[1]}</div>` : ''}</td>
+      <td>${num(r, 3)}–${num(r, 4)}</td>
+      <td class="${rc}">${res}</td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="sgrid">
+      <div class="scard">
+        <div class="lbl">試合数</div>
+        <div class="val c-main">${total}</div>
+        <div class="unit">試合</div>
+      </div>
+      <div class="scard">
+        <div class="lbl">勝率</div>
+        <div class="val ${wrC}">${wr(wins, total)}</div>
+      </div>
+      <div class="scard">
+        <div class="lbl">総得点</div>
+        <div class="val c-main">${scored}</div>
+        <div class="unit">点</div>
+      </div>
+      <div class="scard">
+        <div class="lbl">総失点</div>
+        <div class="val c-muted">${conceded}</div>
+        <div class="unit">点</div>
+      </div>
+    </div>
+    <div class="badges">
+      <div class="badge b-win">
+        <div class="n">${wins}</div>
+        <div class="l">勝</div>
+      </div>
+      <div class="badge b-draw">
+        <div class="n">${draws}</div>
+        <div class="l">分</div>
+      </div>
+      <div class="badge b-loss">
+        <div class="n">${losses}</div>
+        <div class="l">負</div>
+      </div>
+      <div class="badge b-diff">
+        <div class="n">${diffSign}${diff}</div>
+        <div class="l">得失差</div>
+      </div>
+    </div>
+    <div class="sh">試合一覧</div>
+    <div class="tw">
+      <table>
+        <thead>
+          <tr>
+            <th>日付</th>
+            <th>相手チーム</th>
+            <th>スコア</th>
+            <th>結果</th>
+          </tr>
+        </thead>
+        <tbody>${matchRows}</tbody>
+      </table>
+    </div>`;
+}
+
+/* ─────────────── Tab 2: 得点ランキング ─────────────── */
+
+function renderScorers() {
+  const data = applyFilter(rows, document.getElementById('sel-scorers').value);
+  const el   = document.getElementById('out-scorers');
+
+  const totals  = {};
+  const matches = {};
+
+  for (const r of data) {
+    const sc = parseScorers(r[6] || '');
+    for (const [name, g] of Object.entries(sc)) {
+      totals[name]  = (totals[name]  || 0) + g;
+      matches[name] = (matches[name] || 0) + 1;
+    }
+  }
+
+  if (!Object.keys(totals).length) {
+    el.innerHTML = '<div class="nodata">得点データがありません</div>';
+    return;
+  }
+
+  const sorted = Object.entries(totals).sort(([na, ga], [nb, gb]) =>
+    gb !== ga ? gb - ga : na.localeCompare(nb, 'ja')
+  );
+
+  let rankCnt = 1, prev = null, disp = 0;
+  const tbody = sorted.map(([name, g]) => {
+    if (g !== prev) disp = rankCnt;
+    prev = g;
+    rankCnt++;
+    const rc = disp === 1 ? 'r1' : disp === 2 ? 'r2' : disp === 3 ? 'r3' : 'rn';
+    return `<tr>
+      <td><span class="rk ${rc}">${disp}</span></td>
+      <td class="tl">${name}</td>
+      <td><strong>${g}</strong></td>
+      <td>${matches[name]}</td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="tw">
+      <table>
+        <thead>
+          <tr>
+            <th>順位</th>
+            <th>選手名</th>
+            <th>得点</th>
+            <th>得点試合数</th>
+          </tr>
+        </thead>
+        <tbody>${tbody}</tbody>
+      </table>
+    </div>`;
+}
+
+/* ─────────────── Tab 3: 対戦相手別 ─────────────── */
+
+function buildOpponentSel(map, list) {
+  const sel = document.getElementById('sel-opponents');
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">全チーム</option>';
+  list.forEach(([name]) => {
+    const o = document.createElement('option');
+    o.value = name;
+    o.textContent = name;
+    sel.appendChild(o);
+  });
+  if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
+}
+
+function renderOpponents() {
+  const el       = document.getElementById('out-opponents');
+  const selected = document.getElementById('sel-opponents').value;
+
+  if (!rows.length) {
+    el.innerHTML = '<div class="nodata">データがありません</div>';
+    return;
+  }
+
+  const map = {};
+  for (const r of rows) {
+    const name = (r[2] || '').trim();
+    if (!name) continue;
+    if (!map[name]) map[name] = { g: 0, w: 0, d: 0, l: 0, sc: 0, co: 0, matches: [] };
+    const o   = map[name];
+    const res = cell(r, 5);
+    o.g++;
+    if      (res === '◯') o.w++;
+    else if (res === '△') o.d++;
+    else if (res === '×') o.l++;
+    o.sc += num(r, 3);
+    o.co += num(r, 4);
+    o.matches.push(r);
+  }
+
+  const list = Object.entries(map).sort(([, a], [, b]) => b.g - a.g || b.w - a.w);
+  buildOpponentSel(map, list);
+
+  const displayList = selected ? list.filter(([name]) => name === selected) : list;
+
+  const summaryTbody = displayList.map(([name, o]) => `
+    <tr>
+      <td class="tl">${name}</td>
+      <td>${o.g}</td>
+      <td class="c-win">${o.w}</td>
+      <td class="c-draw">${o.d}</td>
+      <td class="c-loss">${o.l}</td>
+      <td class="${wrCls(o.w, o.g)}">${wr(o.w, o.g)}</td>
+      <td>${o.sc}</td>
+      <td>${o.co}</td>
+    </tr>`).join('');
+
+  let detailHtml = '';
+  if (selected && map[selected]) {
+    const matchTbody = map[selected].matches.map(r => {
+      const res = cell(r, 5);
+      const rc  = res === '◯' ? 'c-win' : res === '△' ? 'c-draw' : 'c-loss';
+      return `<tr>
+        <td>${formatDate(r[0])}</td>
+        <td class="tl">${r[1] || ''}</td>
+        <td>${num(r, 3)}–${num(r, 4)}</td>
+        <td class="${rc}">${res}</td>
+      </tr>`;
+    }).join('');
+    detailHtml = `
+      <div class="sh">対戦履歴</div>
+      <div class="tw">
+        <table>
+          <thead>
+            <tr><th>日付</th><th>大会</th><th>スコア</th><th>結果</th></tr>
+          </thead>
+          <tbody>${matchTbody}</tbody>
+        </table>
+      </div>`;
+  }
+
+  el.innerHTML = `
+    <div class="tw">
+      <table>
+        <thead>
+          <tr>
+            <th>相手チーム</th>
+            <th>対戦数</th>
+            <th>勝</th>
+            <th>分</th>
+            <th>負</th>
+            <th>勝率</th>
+            <th>得点</th>
+            <th>失点</th>
+          </tr>
+        </thead>
+        <tbody>${summaryTbody}</tbody>
+      </table>
+    </div>
+    ${detailHtml}`;
+}
+
+/* ─────────────── Data loading ─────────────── */
+
+async function load() {
+  const url = GAS_URL;
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      showErr(`Google Sheets API エラー (HTTP ${res.status})<br>${body?.error?.message || ''}`);
+      return;
+    }
+
+    const json = await res.json();
+    rows = (json.values || []).filter(r => r[0] && r[2]);
+
+    buildSel('sel-results');
+    buildSel('sel-scorers');
+    document.getElementById('sel-results').onchange = renderResults;
+    document.getElementById('sel-scorers').onchange = renderScorers;
+
+    renderResults();
+    renderScorers();
+    renderOpponents();
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('app').style.display     = 'block';
+    document.getElementById('updated').textContent   =
+      '最終更新: ' + new Date().toLocaleString('ja-JP');
+
+  } catch (e) {
+    showErr('ネットワークエラー: ' + e.message + '<br>インターネット接続を確認してください。');
+  }
+}
+
+function showErr(msg) {
+  document.getElementById('loading').style.display   = 'none';
+  document.getElementById('err-wrap').style.display  = 'block';
+  document.getElementById('err-msg').innerHTML       = msg;
+}
+
+load();
+</script>
+
+</body>
+</html>
