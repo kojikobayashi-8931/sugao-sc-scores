@@ -322,12 +322,17 @@
     .match-row.has-detail:hover { background: #e8f5e9; }
     .match-detail { display: none; }
     .match-detail.open { display: table-row; }
-    .match-detail td {
+    .match-detail .detail-spacer {
+      padding: 0 !important;
+      border-bottom: 2px solid var(--border) !important;
+      background: #f4faf4;
+    }
+    .match-detail .detail-td {
       padding: 0 !important;
       border-bottom: 2px solid var(--border) !important;
     }
     .detail-inner {
-      padding: 8px 12px 10px;
+      padding: 6px 12px 10px 0;
       background: #f4faf4;
       display: flex;
       flex-wrap: wrap;
@@ -340,6 +345,7 @@
       display: flex;
       flex-wrap: wrap;
       gap: 6px;
+      align-items: center;
     }
     .scorer-chip {
       background: var(--border);
@@ -350,20 +356,27 @@
       font-size: 0.74rem;
     }
     .ei {
-      display: inline-block;
-      font-size: 0.65rem;
-      margin-left: 3px;
-      color: var(--muted);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      background: var(--green);
+      color: #fff;
+      border-radius: 50%;
+      font-size: 0.7rem;
+      font-weight: 900;
+      margin-left: 6px;
       transition: transform 0.2s;
       vertical-align: middle;
+      flex-shrink: 0;
     }
-    .match-row.expanded .ei { transform: rotate(90deg); }
+    .match-row.expanded .ei { transform: rotate(180deg); }
 
     /* ── Video buttons ── */
     .video-btns {
       display: flex;
       gap: 6px;
-      margin-top: 7px;
       flex-wrap: wrap;
     }
     .btn-video {
@@ -529,8 +542,10 @@ function toggleDetail(row) {
   if (!row.classList.contains('has-detail')) return;
   const detail = row.nextElementSibling;
   if (detail && detail.classList.contains('match-detail')) {
-    detail.classList.toggle('open');
-    row.classList.toggle('expanded');
+    const isOpen = detail.classList.toggle('open');
+    row.classList.toggle('expanded', isOpen);
+    const icon = row.querySelector('.ei');
+    if (icon) icon.textContent = isOpen ? '∨' : '∧';
   }
 }
 
@@ -632,20 +647,22 @@ function renderResults() {
     const vBtns      = videoButtons(r);
     const hasDetail  = !!(scorerHtml || vBtns);
 
-    const main = `<tr class="match-row${hasDetail ? ' has-detail' : ''}"${hasDetail ? ' onclick="toggleDetail(this)"' : ''}>
+    const main = `<tr class="match-row${hasDetail ? ' has-detail expanded' : ''}"${hasDetail ? ' onclick="toggleDetail(this)"' : ''}>
       <td>${formatDate(r[0])}</td>
       <td class="tl">${r[2] || ''}${r[1] ? `<div class="sub">${r[1]}</div>` : ''}</td>
       <td>${num(r, 3)}–${num(r, 4)}</td>
-      <td class="${rc}">${res}${hasDetail ? '<span class="ei">›</span>' : ''}</td>
+      <td class="${rc}">${res}</td>
+      <td style="text-align:center;padding:6px 4px;">${hasDetail ? '<span class="ei">∨</span>' : ''}</td>
     </tr>`;
 
     if (!hasDetail) return main;
 
-    const detail = `<tr class="match-detail">
-      <td colspan="4">
+    const detail = `<tr class="match-detail open">
+      <td class="detail-spacer"></td>
+      <td colspan="4" class="detail-td">
         <div class="detail-inner">
-          ${scorerHtml ? `<div class="scorer-line">⚽ ${scorerHtml}</div>` : ''}
           ${vBtns}
+          ${scorerHtml ? `<div class="scorer-line">⚽ ${scorerHtml}</div>` : ''}
         </div>
       </td>
     </tr>`;
@@ -702,6 +719,7 @@ function renderResults() {
             <th>相手チーム</th>
             <th>スコア</th>
             <th>結果</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>${matchRows}</tbody>
