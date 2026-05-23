@@ -280,7 +280,7 @@
     }
     tbody tr:last-child td { border-bottom: none; }
     tbody tr:nth-child(even) { background: #f6fbf6; }
-    tbody tr:hover { background: #e8f5e9; transition: background 0.15s; }
+    tbody tr:not(.match-detail):hover { background: #e8f5e9; transition: background 0.15s; }
     td.tl { text-align: left; white-space: normal; }
 
     /* ── Color helpers ── */
@@ -316,6 +316,48 @@
       color: var(--muted);
       font-size: 0.9rem;
     }
+
+    /* ── Accordion (match detail) ── */
+    .match-row.has-detail { cursor: pointer; user-select: none; }
+    .match-row.has-detail:hover { background: #e8f5e9; }
+    .match-detail { display: none; }
+    .match-detail.open { display: table-row; }
+    .match-detail td {
+      padding: 0 !important;
+      border-bottom: 2px solid var(--border) !important;
+    }
+    .detail-inner {
+      padding: 8px 12px 10px;
+      background: #f4faf4;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+    .scorer-line {
+      font-size: 0.78rem;
+      color: var(--text);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .scorer-chip {
+      background: var(--border);
+      color: var(--green);
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 0.74rem;
+    }
+    .ei {
+      display: inline-block;
+      font-size: 0.65rem;
+      margin-left: 3px;
+      color: var(--muted);
+      transition: transform 0.2s;
+      vertical-align: middle;
+    }
+    .match-row.expanded .ei { transform: rotate(90deg); }
 
     /* ── Video buttons ── */
     .video-btns {
@@ -476,6 +518,22 @@ function applyFilter(data, v) {
   return data;
 }
 
+function formatScorers(s) {
+  const sc = parseScorers(s);
+  const entries = Object.entries(sc);
+  if (!entries.length) return '';
+  return entries.map(([name, n]) => `<span class="scorer-chip">${name} ${n}</span>`).join('');
+}
+
+function toggleDetail(row) {
+  if (!row.classList.contains('has-detail')) return;
+  const detail = row.nextElementSibling;
+  if (detail && detail.classList.contains('match-detail')) {
+    detail.classList.toggle('open');
+    row.classList.toggle('expanded');
+  }
+}
+
 function videoButtons(r) {
   const h = String(r[7] || '').trim();
   const i = String(r[8] || '').trim();
@@ -568,14 +626,31 @@ function renderResults() {
   const diffSign = diff >= 0 ? '+' : '';
 
   const matchRows = data.map(r => {
-    const res = cell(r, 5);
-    const rc  = res === '◯' ? 'c-win' : res === '△' ? 'c-draw' : 'c-loss';
-    return `<tr>
+    const res        = cell(r, 5);
+    const rc         = res === '◯' ? 'c-win' : res === '△' ? 'c-draw' : 'c-loss';
+    const scorerHtml = formatScorers(r[6] || '');
+    const vBtns      = videoButtons(r);
+    const hasDetail  = !!(scorerHtml || vBtns);
+
+    const main = `<tr class="match-row${hasDetail ? ' has-detail' : ''}"${hasDetail ? ' onclick="toggleDetail(this)"' : ''}>
       <td>${formatDate(r[0])}</td>
-      <td class="tl">${r[2] || ''}${r[1] ? `<div class="sub">${r[1]}</div>` : ''}${videoButtons(r)}</td>
+      <td class="tl">${r[2] || ''}${r[1] ? `<div class="sub">${r[1]}</div>` : ''}</td>
       <td>${num(r, 3)}–${num(r, 4)}</td>
-      <td class="${rc}">${res}</td>
+      <td class="${rc}">${res}${hasDetail ? '<span class="ei">›</span>' : ''}</td>
     </tr>`;
+
+    if (!hasDetail) return main;
+
+    const detail = `<tr class="match-detail">
+      <td colspan="4">
+        <div class="detail-inner">
+          ${scorerHtml ? `<div class="scorer-line">⚽ ${scorerHtml}</div>` : ''}
+          ${vBtns}
+        </div>
+      </td>
+    </tr>`;
+
+    return main + detail;
   }).join('');
 
   el.innerHTML = `
