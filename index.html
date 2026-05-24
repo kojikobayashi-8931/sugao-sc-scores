@@ -373,6 +373,34 @@
     }
     .match-row.expanded .ei { transform: rotate(180deg); }
 
+    /* ── Category bar ── */
+    .cat-bar {
+      display: none;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 10px 16px 12px;
+      justify-content: center;
+      background: rgba(0,0,0,0.15);
+    }
+    .cat-btn {
+      padding: 5px 16px;
+      border: 2px solid rgba(255,255,255,0.5);
+      border-radius: 20px;
+      background: transparent;
+      color: rgba(255,255,255,0.85);
+      font-family: inherit;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .cat-btn.active {
+      background: #fff;
+      color: var(--green);
+      border-color: #fff;
+    }
+
     /* ── Video buttons ── */
     .video-btns {
       display: flex;
@@ -406,6 +434,7 @@
               display:block;margin-left:auto;margin-right:auto;">
   <h1>菅生SC U-8 対戦成績</h1>
   <p id="updated"></p>
+  <div id="cat-bar" class="cat-bar"></div>
 </header>
 
 <nav class="tab-nav">
@@ -467,11 +496,29 @@
 
 <script>
 /* ── 設定 ── */
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbxgow3Rms9s5TX9g5J2OyyAdSQV9OKQPtVoARRFM7aJvxIILoU3GEnbqoPrnCmU2wWIGw/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzvpn0jtMlssrk7cKLjZn29aRbW0_w_GZHcWCewlcTcenjFz8BNn2Ce-rF2ph2iZgL5gg/exec';
 
-let rows = [];  // Array of raw row arrays from Sheets API
+/*
+  列インデックス（A列にカテゴリ追加後）
+  r[0]=カテゴリ  r[1]=日付  r[2]=大会  r[3]=相手チーム
+  r[4]=菅生スコア  r[5]=相手スコア  r[6]=勝敗
+  r[7]=得点者  r[8]=前半URL  r[9]=後半URL  r[10]=PK URL
+*/
+
+let rows = [];
+let selectedCat = 'all';
 
 /* ─────────────── Utility ─────────────── */
+
+function cell(r, i) { return String(r[i] ?? '').trim(); }
+function num(r, i)  { return +cell(r, i) || 0; }
+
+function normResult(res) {
+  if (res.startsWith('◯')) return '◯';
+  if (res.startsWith('×')) return '×';
+  if (res.startsWith('△')) return '△';
+  return res;
+}
 
 function parseDate(s) {
   if (!s) return null;
@@ -480,7 +527,6 @@ function parseDate(s) {
     const p = str.split('/');
     if (p.length === 3) return new Date(+p[0], +p[1] - 1, +p[2]);
   }
-  // Apps Script が Date 型を ISO 文字列として返す場合に対応
   const d = new Date(str);
   return isNaN(d.getTime()) ? null : d;
 }
@@ -518,24 +564,41 @@ function parseScorers(s) {
   return out;
 }
 
-function applyFilter(data, v) {
-  if (v === 'all') return data;
-  if (v.startsWith('fy:')) {
-    const fy = +v.slice(3);
-    return data.filter(r => fiscalYear(r[0]) === fy);
-  }
-  if (v.startsWith('m:')) {
-    const mk = v.slice(2);
-    return data.filter(r => monthKey(r[0]) === mk);
-  }
-  return data;
-}
-
 function formatScorers(s) {
   const sc = parseScorers(s);
   const entries = Object.entries(sc);
   if (!entries.length) return '';
   return entries.map(([name, n]) => `<span class="scorer-chip">${name} ${n}</span>`).join('');
+}
+
+/* カテゴリ・期間フィルタ済みの行を返す */
+function catRows() {
+  if (selectedCat === 'all') return rows;
+  return rows.filter(r => cell(r, 0) === selectedCat);
+}
+
+function applyFilter(data, v) {
+  if (v === 'all') return data;
+  if (v.startsWith('fy:')) {
+    const fy = +v.slice(3);
+    return data.filter(r => fiscalYear(r[1]) === fy);
+  }
+  if (v.startsWith('m:')) {
+    const mk = v.slice(2);
+    return data.filter(r => monthKey(r[1]) === mk);
+  }
+  return data;
+}
+
+function videoButtons(r) {
+  const h  = String(r[8]  || '').trim();
+  const i  = String(r[9]  || '').trim();
+  const pk = String(r[10] || '').trim();
+  if (!h && !i && !pk) return '';
+  const bh  = h  ? `<a href="${h}"  target="_blank" rel="noopener" class="btn-video">▶ 前半</a>` : '';
+  const bi  = i  ? `<a href="${i}"  target="_blank" rel="noopener" class="btn-video">▶ 後半</a>` : '';
+  const bpk = pk ? `<a href="${pk}" target="_blank" rel="noopener" class="btn-video">▶ PK</a>`   : '';
+  return `<div class="video-btns">${bh}${bi}${bpk}</div>`;
 }
 
 function toggleDetail(row) {
@@ -549,33 +612,11 @@ function toggleDetail(row) {
   }
 }
 
-function videoButtons(r) {
-  const h  = String(r[7] || '').trim();
-  const i  = String(r[8] || '').trim();
-  const pk = String(r[9] || '').trim();
-  if (!h && !i && !pk) return '';
-  const bh  = h  ? `<a href="${h}"  target="_blank" rel="noopener" class="btn-video">▶ 前半</a>` : '';
-  const bi  = i  ? `<a href="${i}"  target="_blank" rel="noopener" class="btn-video">▶ 後半</a>` : '';
-  const bpk = pk ? `<a href="${pk}" target="_blank" rel="noopener" class="btn-video">▶ PK</a>`   : '';
-  return `<div class="video-btns">${bh}${bi}${bpk}</div>`;
-}
-
 function wr(w, t)    { return t ? Math.round(w / t * 100) + '%' : '—'; }
 function wrCls(w, t) {
   if (!t) return '';
   const r = w / t;
   return r >= 0.6 ? 'c-win' : r >= 0.4 ? 'c-draw' : 'c-loss';
-}
-
-function cell(r, i) { return String(r[i] ?? '').trim(); }
-function num(r, i)  { return +cell(r, i) || 0; }
-
-/* ◯（PK）→◯ / ×（PK）→× として正規化 */
-function normResult(res) {
-  if (res.startsWith('◯')) return '◯';
-  if (res.startsWith('×')) return '×';
-  if (res.startsWith('△')) return '△';
-  return res;
 }
 
 /* ─────────────── Tab switching ─────────────── */
@@ -589,14 +630,43 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   });
 });
 
+/* ─────────────── Category bar ─────────────── */
+
+function buildCatBar() {
+  const cats = [...new Set(rows.map(r => cell(r, 0)).filter(Boolean))].sort();
+  const bar  = document.getElementById('cat-bar');
+  if (!cats.length) { bar.style.display = 'none'; return; }
+
+  bar.innerHTML =
+    `<button class="cat-btn${selectedCat === 'all' ? ' active' : ''}" data-cat="all">すべて</button>` +
+    cats.map(c =>
+      `<button class="cat-btn${selectedCat === c ? ' active' : ''}" data-cat="${c}">${c}</button>`
+    ).join('');
+  bar.style.display = 'flex';
+
+  bar.querySelectorAll('.cat-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectedCat = btn.dataset.cat;
+      bar.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      buildSel('sel-results');
+      buildSel('sel-scorers');
+      renderResults();
+      renderScorers();
+      renderOpponents();
+    });
+  });
+}
+
 /* ─────────────── Build filter selects ─────────────── */
 
 function buildSel(id) {
   const sel  = document.getElementById(id);
   const prev = sel.value;
+  const data = catRows();
 
-  const fys = [...new Set(rows.map(r => fiscalYear(r[0])).filter(Boolean))].sort((a, b) => b - a);
-  const mos = [...new Set(rows.map(r => monthKey(r[0])).filter(Boolean))].sort((a, b) => b.localeCompare(a));
+  const fys = [...new Set(data.map(r => fiscalYear(r[1])).filter(Boolean))].sort((a, b) => b - a);
+  const mos = [...new Set(data.map(r => monthKey(r[1])).filter(Boolean))].sort((a, b) => b.localeCompare(a));
 
   sel.innerHTML = '<option value="all">累計</option>';
 
@@ -626,12 +696,13 @@ function buildSel(id) {
   }
 
   if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
+  else sel.value = 'all';
 }
 
 /* ─────────────── Tab 1: 累計実績 ─────────────── */
 
 function renderResults() {
-  const data = applyFilter(rows, document.getElementById('sel-results').value);
+  const data = applyFilter(catRows(), document.getElementById('sel-results').value);
   const el   = document.getElementById('out-results');
 
   if (!data.length) {
@@ -640,27 +711,27 @@ function renderResults() {
   }
 
   const total    = data.length;
-  const wins     = data.filter(r => normResult(cell(r, 5)) === '◯').length;
-  const draws    = data.filter(r => normResult(cell(r, 5)) === '△').length;
-  const losses   = data.filter(r => normResult(cell(r, 5)) === '×').length;
-  const scored   = data.reduce((s, r) => s + num(r, 3), 0);
-  const conceded = data.reduce((s, r) => s + num(r, 4), 0);
+  const wins     = data.filter(r => normResult(cell(r, 6)) === '◯').length;
+  const draws    = data.filter(r => normResult(cell(r, 6)) === '△').length;
+  const losses   = data.filter(r => normResult(cell(r, 6)) === '×').length;
+  const scored   = data.reduce((s, r) => s + num(r, 4), 0);
+  const conceded = data.reduce((s, r) => s + num(r, 5), 0);
   const diff     = scored - conceded;
   const wrPct    = total ? Math.round(wins / total * 100) : 0;
   const wrC      = wrPct >= 60 ? 'c-win' : wrPct >= 40 ? 'c-draw' : 'c-loss';
   const diffSign = diff >= 0 ? '+' : '';
 
   const matchRows = data.map(r => {
-    const res        = cell(r, 5);
+    const res        = cell(r, 6);
     const rc         = normResult(res) === '◯' ? 'c-win' : normResult(res) === '△' ? 'c-draw' : 'c-loss';
-    const scorerHtml = formatScorers(r[6] || '');
+    const scorerHtml = formatScorers(r[7] || '');
     const vBtns      = videoButtons(r);
     const hasDetail  = !!(scorerHtml || vBtns);
 
     const main = `<tr class="match-row${hasDetail ? ' has-detail expanded' : ''}"${hasDetail ? ' onclick="toggleDetail(this)"' : ''}>
-      <td>${formatDate(r[0])}</td>
-      <td class="tl">${r[2] || ''}${r[1] ? `<div class="sub">${r[1]}</div>` : ''}</td>
-      <td>${num(r, 3)}–${num(r, 4)}</td>
+      <td>${formatDate(r[1])}</td>
+      <td class="tl">${r[3] || ''}${r[2] ? `<div class="sub">${r[2]}</div>` : ''}</td>
+      <td>${num(r, 4)}–${num(r, 5)}</td>
       <td class="${rc}">${res}</td>
       <td style="text-align:center;padding:6px 4px;">${hasDetail ? '<span class="ei">∨</span>' : ''}</td>
     </tr>`;
@@ -740,14 +811,14 @@ function renderResults() {
 /* ─────────────── Tab 2: 得点ランキング ─────────────── */
 
 function renderScorers() {
-  const data = applyFilter(rows, document.getElementById('sel-scorers').value);
+  const data = applyFilter(catRows(), document.getElementById('sel-scorers').value);
   const el   = document.getElementById('out-scorers');
 
   const totals  = {};
   const matches = {};
 
   for (const r of data) {
-    const sc = parseScorers(r[6] || '');
+    const sc = parseScorers(r[7] || '');
     for (const [name, g] of Object.entries(sc)) {
       totals[name]  = (totals[name]  || 0) + g;
       matches[name] = (matches[name] || 0) + 1;
@@ -796,7 +867,7 @@ function renderScorers() {
 /* ─────────────── Tab 3: 対戦相手別 ─────────────── */
 
 function buildOpponentSel(map, list) {
-  const sel = document.getElementById('sel-opponents');
+  const sel  = document.getElementById('sel-opponents');
   const prev = sel.value;
   sel.innerHTML = '<option value="">全チーム</option>';
   list.forEach(([name]) => {
@@ -811,25 +882,26 @@ function buildOpponentSel(map, list) {
 function renderOpponents() {
   const el       = document.getElementById('out-opponents');
   const selected = document.getElementById('sel-opponents').value;
+  const source   = catRows();
 
-  if (!rows.length) {
+  if (!source.length) {
     el.innerHTML = '<div class="nodata">データがありません</div>';
     return;
   }
 
   const map = {};
-  for (const r of rows) {
-    const name = (r[2] || '').trim();
+  for (const r of source) {
+    const name = (r[3] || '').trim();
     if (!name) continue;
     if (!map[name]) map[name] = { g: 0, w: 0, d: 0, l: 0, sc: 0, co: 0, matches: [] };
     const o   = map[name];
-    const res = cell(r, 5);
+    const res = cell(r, 6);
     o.g++;
     if      (normResult(res) === '◯') o.w++;
     else if (normResult(res) === '△') o.d++;
     else if (normResult(res) === '×') o.l++;
-    o.sc += num(r, 3);
-    o.co += num(r, 4);
+    o.sc += num(r, 4);
+    o.co += num(r, 5);
     o.matches.push(r);
   }
 
@@ -853,12 +925,12 @@ function renderOpponents() {
   let detailHtml = '';
   if (selected && map[selected]) {
     const matchTbody = map[selected].matches.map(r => {
-      const res = cell(r, 5);
+      const res = cell(r, 6);
       const rc  = normResult(res) === '◯' ? 'c-win' : normResult(res) === '△' ? 'c-draw' : 'c-loss';
       return `<tr>
-        <td>${formatDate(r[0])}</td>
-        <td class="tl">${r[1] || ''}${videoButtons(r)}</td>
-        <td>${num(r, 3)}–${num(r, 4)}</td>
+        <td>${formatDate(r[1])}</td>
+        <td class="tl">${r[2] || ''}${videoButtons(r)}</td>
+        <td>${num(r, 4)}–${num(r, 5)}</td>
         <td class="${rc}">${res}</td>
       </tr>`;
     }).join('');
@@ -898,10 +970,8 @@ function renderOpponents() {
 /* ─────────────── Data loading ─────────────── */
 
 async function load() {
-  const url = GAS_URL;
-
   try {
-    const res = await fetch(url);
+    const res = await fetch(GAS_URL);
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
       showErr(`Google Sheets API エラー (HTTP ${res.status})<br>${body?.error?.message || ''}`);
@@ -909,8 +979,9 @@ async function load() {
     }
 
     const json = await res.json();
-    rows = (json.values || []).filter(r => r[0] && r[2]);
+    rows = (json.values || []).filter(r => r[1] && r[3]);  // r[1]=日付, r[3]=相手チーム
 
+    buildCatBar();
     buildSel('sel-results');
     buildSel('sel-scorers');
     document.getElementById('sel-results').onchange = renderResults;
