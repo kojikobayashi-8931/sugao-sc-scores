@@ -467,7 +467,7 @@
 
 <script>
 /* ── 設定 ── */
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbyoSsAXqX4z3Yle9ZbF6CmFUfVS1vh2_zmk3KwaevtWdGTTw-HcFsavSrkFFTHE4HsSUA/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbxgow3Rms9s5TX9g5J2OyyAdSQV9OKQPtVoARRFM7aJvxIILoU3GEnbqoPrnCmU2wWIGw/exec';
 
 let rows = [];  // Array of raw row arrays from Sheets API
 
@@ -550,12 +550,14 @@ function toggleDetail(row) {
 }
 
 function videoButtons(r) {
-  const h = String(r[7] || '').trim();
-  const i = String(r[8] || '').trim();
-  if (!h && !i) return '';
-  const bh = h ? `<a href="${h}" target="_blank" rel="noopener" class="btn-video">▶ 前半</a>` : '';
-  const bi = i ? `<a href="${i}" target="_blank" rel="noopener" class="btn-video">▶ 後半</a>` : '';
-  return `<div class="video-btns">${bh}${bi}</div>`;
+  const h  = String(r[7] || '').trim();
+  const i  = String(r[8] || '').trim();
+  const pk = String(r[9] || '').trim();
+  if (!h && !i && !pk) return '';
+  const bh  = h  ? `<a href="${h}"  target="_blank" rel="noopener" class="btn-video">▶ 前半</a>` : '';
+  const bi  = i  ? `<a href="${i}"  target="_blank" rel="noopener" class="btn-video">▶ 後半</a>` : '';
+  const bpk = pk ? `<a href="${pk}" target="_blank" rel="noopener" class="btn-video">▶ PK</a>`   : '';
+  return `<div class="video-btns">${bh}${bi}${bpk}</div>`;
 }
 
 function wr(w, t)    { return t ? Math.round(w / t * 100) + '%' : '—'; }
@@ -567,6 +569,14 @@ function wrCls(w, t) {
 
 function cell(r, i) { return String(r[i] ?? '').trim(); }
 function num(r, i)  { return +cell(r, i) || 0; }
+
+/* ◯（PK）→◯ / ×（PK）→× として正規化 */
+function normResult(res) {
+  if (res.startsWith('◯')) return '◯';
+  if (res.startsWith('×')) return '×';
+  if (res.startsWith('△')) return '△';
+  return res;
+}
 
 /* ─────────────── Tab switching ─────────────── */
 
@@ -630,9 +640,9 @@ function renderResults() {
   }
 
   const total    = data.length;
-  const wins     = data.filter(r => cell(r, 5) === '◯').length;
-  const draws    = data.filter(r => cell(r, 5) === '△').length;
-  const losses   = data.filter(r => cell(r, 5) === '×').length;
+  const wins     = data.filter(r => normResult(cell(r, 5)) === '◯').length;
+  const draws    = data.filter(r => normResult(cell(r, 5)) === '△').length;
+  const losses   = data.filter(r => normResult(cell(r, 5)) === '×').length;
   const scored   = data.reduce((s, r) => s + num(r, 3), 0);
   const conceded = data.reduce((s, r) => s + num(r, 4), 0);
   const diff     = scored - conceded;
@@ -642,7 +652,7 @@ function renderResults() {
 
   const matchRows = data.map(r => {
     const res        = cell(r, 5);
-    const rc         = res === '◯' ? 'c-win' : res === '△' ? 'c-draw' : 'c-loss';
+    const rc         = normResult(res) === '◯' ? 'c-win' : normResult(res) === '△' ? 'c-draw' : 'c-loss';
     const scorerHtml = formatScorers(r[6] || '');
     const vBtns      = videoButtons(r);
     const hasDetail  = !!(scorerHtml || vBtns);
@@ -815,9 +825,9 @@ function renderOpponents() {
     const o   = map[name];
     const res = cell(r, 5);
     o.g++;
-    if      (res === '◯') o.w++;
-    else if (res === '△') o.d++;
-    else if (res === '×') o.l++;
+    if      (normResult(res) === '◯') o.w++;
+    else if (normResult(res) === '△') o.d++;
+    else if (normResult(res) === '×') o.l++;
     o.sc += num(r, 3);
     o.co += num(r, 4);
     o.matches.push(r);
@@ -844,7 +854,7 @@ function renderOpponents() {
   if (selected && map[selected]) {
     const matchTbody = map[selected].matches.map(r => {
       const res = cell(r, 5);
-      const rc  = res === '◯' ? 'c-win' : res === '△' ? 'c-draw' : 'c-loss';
+      const rc  = normResult(res) === '◯' ? 'c-win' : normResult(res) === '△' ? 'c-draw' : 'c-loss';
       return `<tr>
         <td>${formatDate(r[0])}</td>
         <td class="tl">${r[1] || ''}${videoButtons(r)}</td>
