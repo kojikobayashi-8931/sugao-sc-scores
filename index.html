@@ -402,6 +402,34 @@
       border-color: #fff;
     }
 
+    /* ── Ranking toggle ── */
+    .rank-toggle {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 12px;
+      background: #f0f4f0;
+      border-radius: 20px;
+      padding: 4px;
+    }
+    .rtab-btn {
+      flex: 1;
+      padding: 7px 4px;
+      border: none;
+      background: transparent;
+      border-radius: 16px;
+      font-size: 0.82rem;
+      font-family: inherit;
+      font-weight: 700;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .rtab-btn.active {
+      background: var(--green);
+      color: #fff;
+      box-shadow: 0 2px 6px rgba(46,125,50,0.35);
+    }
+
     /* ── Video buttons ── */
     .video-btns {
       display: flex;
@@ -440,7 +468,7 @@
 
 <nav class="tab-nav">
   <button class="tab-btn active" data-tab="results">累計実績</button>
-  <button class="tab-btn" data-tab="scorers">得点ランキング</button>
+  <button class="tab-btn" data-tab="scorers">ランキング</button>
   <button class="tab-btn" data-tab="opponents">対戦相手別</button>
 </nav>
 
@@ -472,8 +500,12 @@
       <div id="out-results"></div>
     </div>
 
-    <!-- Tab 2: 得点ランキング -->
+    <!-- Tab 2: ランキング -->
     <div id="panel-scorers" class="panel">
+      <div class="rank-toggle">
+        <button class="rtab-btn active" data-rtab="goals">得点</button>
+        <button class="rtab-btn" data-rtab="assists">アシスト</button>
+      </div>
       <div class="fbar">
         <label>絞り込み：</label>
         <select id="sel-scorers" class="fsel"></select>
@@ -497,17 +529,18 @@
 
 <script>
 /* ── 設定 ── */
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbzvpn0jtMlssrk7cKLjZn29aRbW0_w_GZHcWCewlcTcenjFz8BNn2Ce-rF2ph2iZgL5gg/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbyFpQCk56H-nPGYALOAld2EgtNJrjqJbX0-IST-wWsq1pB5x8_3Ed3OhJnfYJy8n_6R/exec';
 
 /*
-  列インデックス（A列にカテゴリ追加後）
-  r[0]=カテゴリ  r[1]=日付  r[2]=大会  r[3]=相手チーム
-  r[4]=菅生スコア  r[5]=相手スコア  r[6]=勝敗
-  r[7]=得点者  r[8]=前半URL  r[9]=後半URL  r[10]=PK URL
+  列インデックス
+  r[0]=カテゴリ  r[1]=日付    r[2]=大会      r[3]=相手チーム
+  r[4]=菅生スコア r[5]=相手スコア r[6]=勝敗
+  r[7]=得点者   r[8]=アシスト  r[9]=前半URL  r[10]=後半URL  r[11]=PK URL
 */
 
 let rows = [];
-let selectedCat = 'all';
+let selectedCat  = 'all';
+let rankingType  = 'goals';  // 'goals' or 'assists'
 
 /* ─────────────── Utility ─────────────── */
 
@@ -592,9 +625,9 @@ function applyFilter(data, v) {
 }
 
 function videoButtons(r) {
-  const h  = String(r[8]  || '').trim();
-  const i  = String(r[9]  || '').trim();
-  const pk = String(r[10] || '').trim();
+  const h  = String(r[9]  || '').trim();
+  const i  = String(r[10] || '').trim();
+  const pk = String(r[11] || '').trim();
   if (!h && !i && !pk) return '';
   const bh  = h  ? `<a href="${h}"  target="_blank" rel="noopener" class="btn-video">▶ 前半</a>` : '';
   const bi  = i  ? `<a href="${i}"  target="_blank" rel="noopener" class="btn-video">▶ 後半</a>` : '';
@@ -628,6 +661,17 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+/* ─────────────── Ranking type toggle ─────────────── */
+
+document.querySelectorAll('.rtab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    rankingType = btn.dataset.rtab;
+    document.querySelectorAll('.rtab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderScorers();
   });
 });
 
@@ -809,17 +853,19 @@ function renderResults() {
     </div>`;
 }
 
-/* ─────────────── Tab 2: 得点ランキング ─────────────── */
+/* ─────────────── Tab 2: ランキング ─────────────── */
 
 function renderScorers() {
-  const data = applyFilter(catRows(), document.getElementById('sel-scorers').value);
-  const el   = document.getElementById('out-scorers');
+  const data   = applyFilter(catRows(), document.getElementById('sel-scorers').value);
+  const el     = document.getElementById('out-scorers');
+  const colIdx = rankingType === 'goals' ? 7 : 8;  // r[7]=得点者, r[8]=アシスト
+  const label  = rankingType === 'goals' ? '得点' : 'アシスト';
 
   const totals  = {};
   const matches = {};
 
   for (const r of data) {
-    const sc = parseScorers(r[7] || '');
+    const sc = parseScorers(cell(r, colIdx));
     for (const [name, g] of Object.entries(sc)) {
       totals[name]  = (totals[name]  || 0) + g;
       matches[name] = (matches[name] || 0) + 1;
@@ -827,7 +873,7 @@ function renderScorers() {
   }
 
   if (!Object.keys(totals).length) {
-    el.innerHTML = '<div class="nodata">得点データがありません</div>';
+    el.innerHTML = `<div class="nodata">${label}データがありません</div>`;
     return;
   }
 
@@ -856,8 +902,8 @@ function renderScorers() {
           <tr>
             <th>順位</th>
             <th>選手名</th>
-            <th>得点</th>
-            <th>得点試合数</th>
+            <th>${label}</th>
+            <th>${label}試合数</th>
           </tr>
         </thead>
         <tbody>${tbody}</tbody>
