@@ -529,13 +529,14 @@
 
 <script>
 /* ── 設定 ── */
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbyFpQCk56H-nPGYALOAld2EgtNJrjqJbX0-IST-wWsq1pB5x8_3Ed3OhJnfYJy8n_6R/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbxC8gjAsjK-MvIp3g3ZJGmbX2j1nM0e9l9GIkkS1a0-GWstC9O4BkwywHCrL3-qKBnv-Q/exec';
 
 /*
   列インデックス
   r[0]=カテゴリ  r[1]=日付    r[2]=大会      r[3]=相手チーム
   r[4]=菅生スコア r[5]=相手スコア r[6]=勝敗
-  r[7]=得点者   r[8]=アシスト  r[9]=前半URL  r[10]=後半URL  r[11]=PK URL
+  r[7]=得点者   r[8]=アシスト
+  r[9]=前半URL  r[10]=後半URL  r[11]=PK URL  r[12]=動画URL（前後半なし時）
 */
 
 let rows = [];
@@ -625,14 +626,25 @@ function applyFilter(data, v) {
 }
 
 function videoButtons(r) {
-  const h  = String(r[9]  || '').trim();
-  const i  = String(r[10] || '').trim();
-  const pk = String(r[11] || '').trim();
-  if (!h && !i && !pk) return '';
-  const bh  = h  ? `<a href="${h}"  target="_blank" rel="noopener" class="btn-video">▶ 前半</a>` : '';
-  const bi  = i  ? `<a href="${i}"  target="_blank" rel="noopener" class="btn-video">▶ 後半</a>` : '';
-  const bpk = pk ? `<a href="${pk}" target="_blank" rel="noopener" class="btn-video">▶ PK</a>`   : '';
-  return `<div class="video-btns">${bh}${bi}${bpk}</div>`;
+  const h   = String(r[9]  || '').trim();
+  const i   = String(r[10] || '').trim();
+  const pk  = String(r[11] || '').trim();
+  const mov = String(r[12] || '').trim();
+
+  // J/K/L に前後半・PK リンクがある場合はそちらを優先表示
+  if (h || i || pk) {
+    const bh  = h  ? `<a href="${h}"  target="_blank" rel="noopener" class="btn-video">▶ 前半</a>` : '';
+    const bi  = i  ? `<a href="${i}"  target="_blank" rel="noopener" class="btn-video">▶ 後半</a>` : '';
+    const bpk = pk ? `<a href="${pk}" target="_blank" rel="noopener" class="btn-video">▶ PK</a>`   : '';
+    return `<div class="video-btns">${bh}${bi}${bpk}</div>`;
+  }
+
+  // J/K/L がすべて空の場合は M 列の汎用動画リンクを表示
+  if (mov) {
+    return `<div class="video-btns"><a href="${mov}" target="_blank" rel="noopener" class="btn-video">▶ 動画</a></div>`;
+  }
+
+  return '';
 }
 
 function toggleDetail(row) {
